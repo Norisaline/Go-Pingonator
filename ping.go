@@ -16,7 +16,7 @@ func generateIPRange(startIP, endIP string) ([]string, error) {
 	start := net.ParseIP(startIP)
 	end := net.ParseIP(endIP)
 	if start == nil || end == nil {
-		return nil, fmt.Errorf("Неверный IP-адрес")
+		panic("Неверный пул адресов")
 	}
 
 	var ips []string
@@ -28,7 +28,7 @@ func generateIPRange(startIP, endIP string) ([]string, error) {
 	return ips, nil
 }
 
-// Увеличение IP-адреса
+// Увеличение IP-адрес на +1
 func incrementIP(ip net.IP) {
 	for j := len(ip) - 1; j >= 0; j-- {
 		ip[j]++
@@ -42,19 +42,18 @@ func incrementIP(ip net.IP) {
 func pingAddress(address string, failedAddresses *[]string) {
 	pinger, err := ping.NewPinger(address)
 	if err != nil {
-		log.Printf("Ошибка создания пингера для %s: %v", address, err)
-		*failedAddresses = append(*failedAddresses, address)
-		return
+		panic("Ошибка пинга")
 	}
 
+	//Кооличество пакетов, задержка посылки покетац
 	pinger.SetPrivileged(true)
 	pinger.Count = 2
 	pinger.Timeout = 2 * time.Second
 
-	fmt.Printf("\nПингую %s...\n", address)
+	fmt.Printf("Пингую %s...\n", address)
 	err = pinger.Run()
 	if err != nil || pinger.Statistics().PacketLoss > 0 {
-		log.Printf("\nОшибка пинга %s:\n", address)
+		log.Printf("Ошибка пинга %s:\n\n", address)
 		*failedAddresses = append(*failedAddresses, address)
 	}
 }
@@ -63,13 +62,13 @@ func pingAddress(address string, failedAddresses *[]string) {
 func saveFailedAddresses(failedAddresses []string, filename string) error {
 	file, err := os.Create(filename)
 	if err != nil {
-		return err
+		fmt.Println(err.Error())
 	}
 	defer file.Close()
 
 	for _, address := range failedAddresses {
 		if _, err := file.WriteString(address + "\n"); err != nil {
-			return err
+			fmt.Println(err.Error())
 		}
 	}
 	return nil
@@ -78,15 +77,16 @@ func saveFailedAddresses(failedAddresses []string, filename string) error {
 func main() {
 	var startIP, endIP string
 
-	fmt.Println("Введи начало диапазона пула айпи адреса")
+	fmt.Println("\t\t\tВведи начало диапазона пула айпи адреса")
 	fmt.Scan(&startIP)
 
-	fmt.Println("Введи конец диапазона пула айпи адреса")
+	fmt.Println("\t\t\tВведи конец диапазона пула айпи адреса")
 	fmt.Scan(&endIP)
 
 	addresses, err := generateIPRange(startIP, endIP)
 	if err != nil {
-		log.Fatalf("Ошибка генерации диапазона IP-адресов: %v", err)
+		fmt.Println(err.Error())
+		panic("Ошибка генерации диапазона IP")
 	}
 
 	var failedAddresses []string
@@ -96,21 +96,20 @@ func main() {
 
 	if len(failedAddresses) > 0 {
 		if err := saveFailedAddresses(failedAddresses, "failed_addresses.txt"); err != nil {
-			log.Fatalf("Ошибка сохранения списка неудачных адресов: %v", err)
+			fmt.Println(err.Error())
+			panic("Ошибка сохранения списка неудачных адресов: ")
 		}
-		fmt.Println("Список неудачных адресов сохранён в файл failed_addresses.txt")
-	} else {
-		fmt.Println("Все адреса успешно пингуются.")
+		fmt.Println("Список неудачных адресов сохранён в файл failed_addresses\n\n")
 	}
 
-	fmt.Println("Press 'q' to quit")
+	//Закрываем программу
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		exit := scanner.Text()
 		if exit == "q" {
 			break
 		} else {
-			fmt.Println("Press 'q' to quit")
+			fmt.Println("\t\t\tPress 'q' to quit")
 		}
 	}
 }
